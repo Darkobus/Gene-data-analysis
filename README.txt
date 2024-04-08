@@ -23,3 +23,5 @@ Prerequisites
 Python 3.x
 Pandas: For data manipulation and analysis.
 Openpyxl: For reading, writing, and modifying Excel files in XLSX/XLSM/XLTX/XLTM formats.
+
+Its my first repository, so it can be missing creatin elements - if you are willful give me feedback :)
