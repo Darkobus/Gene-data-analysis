@@ -71,12 +71,20 @@ each comparison, and a final file named based on the
 
 Here's an example configuration and output process:
 
-1. **Configuration** in `main.py`:```
-python BASE_GO ='directory/go.xlsx' 
-BASE_ALL_COMPARED = 'directory/all_compare.xlsx' 
-INTERESTED_FUNCTION = 'chaperon' 
-COMPARE = ['HEK41vsHEK_padj', 'HEK41_G50vsHEK41_padj', 'HEK41_G50vsHEK_padj', 'HEK84vsHEK_padj', 'HEK84_G50vsHEK84_padj', 'HEK84_G50vsHEK_padj'] ```
-
+1. **Configuration in** `main.py`:
+    ```python
+    BASE_GO = 'directory/go.xlsx'
+    BASE_ALL_COMPARED = 'directory/all_compare.xlsx'
+    INTERESTED_FUNCTION = 'chaperon'
+    COMPARE = [
+        'HEK41vsHEK_padj',
+        'HEK41_G50vsHEK41_padj',
+        'HEK41_G50vsHEK_padj',
+        'HEK84vsHEK_padj',
+        'HEK84_G50vsHEK84_padj',
+        'HEK84_G50vsHEK_padj'
+    ]
+    ```
 3. **Running the script**: ```bash python main.py ```
 
 4. **Output**:  - `Wyniki.xlsx`: Contains sheets for each column
