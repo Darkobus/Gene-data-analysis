@@ -1,3 +1,6 @@
+Oczywiście, poniżej znajduje się zaktualizowany kod z komunikatami `print` przetłumaczonymi na język angielski:
+
+```python
 import os
 import pandas as pd
 from openpyxl import load_workbook, Workbook
@@ -62,11 +65,11 @@ def read_excel_file_in_chunks(file_path, chunk_size):
         return
 
 def analyze_column(df_go, df_all_compared, col):
-    print(f"Analizowanie kolumny: {col}")
+    print(f"Analyzing column: {col}")
     filtered_go = df_go[df_go['go_term'].str.contains(INTERESTED_FUNCTION, case=False)]
 
     count_filtered = filtered_go.shape[0]
-    print(f"Liczba komórek zawierających frazę '{INTERESTED_FUNCTION}': {count_filtered}")
+    print(f"Number of cells containing the phrase '{INTERESTED_FUNCTION}': {count_filtered}")
 
     filtered_all_compared = df_all_compared[df_all_compared['gene_id'].isin(filtered_go['gene_id'])]
 
@@ -74,7 +77,7 @@ def analyze_column(df_go, df_all_compared, col):
     filtered_df = filtered_all_compared[condition]
 
     count_condition = filtered_df.shape[0]
-    print(f"Liczba wyników spełniających warunek: {count_condition}")
+    print(f"Number of results meeting the condition: {count_condition}")
 
     return filtered_df
 
@@ -95,22 +98,21 @@ def color_columns(workbook, sheet_name, compare_col_index):
             elif compare_cell.value < 0:
                 target_cell.fill = blue_fill
 
-
 def main():
-    print(f"Ładowanie bazy danych {BASE_GO}...")
+    print(f"Loading database {BASE_GO}...")
     cols_to_read = ['gene_id', 'go_term']
     df_go = pd.read_excel(BASE_GO, usecols=cols_to_read)
 
-    print(f"Wczytywanie danych z {BASE_ALL_COMPARED}...")
+    print(f"Loading data from {BASE_ALL_COMPARED}...")
     df_all_compared = pd.read_excel(BASE_ALL_COMPARED, engine='openpyxl')
-    print("Wczytywanie zakończone.")
+    print("Data loading completed.")
 
     unique_wyniki = generate_unique_filename("Wyniki.xlsx")
     with pd.ExcelWriter(unique_wyniki, engine='openpyxl') as writer:
         for col in COMPARE:
             filtered_df = analyze_column(df_go, df_all_compared, col)
             filtered_df.to_excel(writer, sheet_name=col, index=False)
-    print("Wszystkie dane zostały zapisane do oddzielnych arkuszy.")
+    print("All data has been saved to separate sheets.")
 
     # Load the workbook to apply coloring
     wb = load_workbook(unique_wyniki)
@@ -120,9 +122,10 @@ def main():
         color_columns(wb, col, compare_col_index)
 
     unique_filename = generate_unique_filename(f'{INTERESTED_FUNCTION}.xlsx')
-    print(f"Zapisywanie kolorowych '{unique_filename}'...")
+    print(f"Saving colored '{unique_filename}'...")
     wb.save(unique_filename)
-    print("Zapisywanie zakończone. Chwalmy piwo!")
+    print("Saving completed. Cheers!")
 
 if __name__ == "__main__":
     main()
+```
