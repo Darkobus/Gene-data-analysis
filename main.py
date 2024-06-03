@@ -9,14 +9,9 @@ from pathlib import Path
 
 # Quick Config
 
-# Path to files
-BASE_GO = 'Przekonwertowane/go1.xls.xlsx'
-BASE_ALL_COMPARED = 'Przekonwertowane/all_compare1.xlsx'
-
-# Interesting phrase - Autophagy, Mitochondria etc
+BASE_GO = 'path.xlsx'
+BASE_ALL_COMPARED = 'path.xlsx'
 INTERESTED_FUNCTION = 'chaperon'
-
-# pAdj Column for use
 COMPARE = ['HEK41vsHEK_padj', 'HEK41_G50vsHEK41_padj','HEK41_G50vsHEK_padj','HEK84vsHEK_padj','HEK84_G50vsHEK84_padj','HEK84_G50vsHEK_padj','HEK53vsHEK_padj', 'HEK453_G50vsHEK53_padj','HEK53_G50vsHEK_padj']
 
 CHUNK_SIZE = 1000
