@@ -1,6 +1,3 @@
-Oczywiście, poniżej znajduje się zaktualizowany kod z komunikatami `print` przetłumaczonymi na język polski:
-
-```python
 import os
 import pandas as pd
 from openpyxl import load_workbook, Workbook
@@ -123,4 +120,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-```
