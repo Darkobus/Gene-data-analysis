@@ -1,6 +1,3 @@
-Oczywiście, poniżej znajduje się zaktualizowany kod z komunikatami `print` przetłumaczonymi na język angielski:
-
-```python
 import os
 import pandas as pd
 from openpyxl import load_workbook, Workbook
