@@ -1,122 +1,190 @@
-import os
 import pandas as pd
-from openpyxl import load_workbook, Workbook
-from openpyxl.styles import PatternFill
-from pathlib import Path
+import openpyxl
+from openpyxl.styles import PatternFill, Border, Side, Alignment
+from openpyxl.utils import get_column_letter
+import tkinter as tk
+from tkinter import filedialog
+import threading
 
-# Quick Config
+def browse_file(entry):
+    filename = filedialog.askopenfilename(filetypes=[("Excel files", "*.xlsx")])
+    entry.delete(0, tk.END)
+    entry.insert(0, filename)
 
-BASE_GO = 'path.xlsx'
-BASE_ALL_COMPARED = 'path.xlsx'
-INTERESTED_FUNCTION = 'chaperon'
-COMPARE = ['HEK41vsHEK_padj', 'HEK41_G50vsHEK41_padj','HEK41_G50vsHEK_padj','HEK84vsHEK_padj','HEK84_G50vsHEK84_padj','HEK84_G50vsHEK_padj','HEK53vsHEK_padj', 'HEK453_G50vsHEK53_padj','HEK53_G50vsHEK_padj']
 
-CHUNK_SIZE = 1000
+def browse_directory(entry):
+    directory = filedialog.askdirectory()
+    entry.delete(0, tk.END)
+    entry.insert(0, directory)
 
-def generate_unique_filename(base_filename):
-    """
-    Generates a unique filename by appending a numerical suffix if the specified base filename already exists.
-    :param base_filename: The base name of the file, including the path and extension.
-    :return: A unique filename with a numerical suffix if necessary.
-    """
-    filename = Path(base_filename)
-    counter = 1  # Start counter for suffix
-    new_filename = filename  # Initialize with the original name
 
-    # Loop until a unique filename is found
-    while new_filename.exists():
-        new_filename = filename.with_name(f"{filename.stem}({counter}){filename.suffix}")
-        counter += 1
+def start_process():
+    log_text.insert(tk.END, "Working...\n")
+    log_text.update()
 
-    return new_filename
+    df2 = pd.read_excel(entry_file2.get())
+    log_text.insert(tk.END, "Loaded Compare.xlsx.\n")
+    log_text.update()
 
-def process_chunk(chunk, expected_columns):
-    """Process each chunk: verify columns and perform further processing."""
-    if not set(expected_columns).issubset(chunk.columns):
-        raise ValueError("Missing one or more expected columns in the Excel file.")
-    # Placeholder for further chunk processing
-    print(chunk.head())  # Example action: Print the first few rows
+    columns_input = entry_columns.get().split(';')
+    columns_input = [col.strip() + "_log2FoldChange" for col in columns_input]
 
-def read_excel_file_in_chunks(file_path, chunk_size):
-    try:
-        # Attempt to initialize a chunked reader
-        reader = pd.read_excel(file_path, chunksize=chunk_size)
-    except FileNotFoundError:
-        print(f"Error: File {file_path} not found.")
-        return
-    except Exception as e:
-        print(f"An unexpected error occurred: {e}")
-        return
+    df1 = pd.read_excel(entry_file1.get(), usecols=["gene_id", "go_term"])
+    log_text.insert(tk.END, "Loaded GO.xlsx.\n")
+    log_text.update()
 
-    expected_columns = ['gene_id', 'go_term']
-    try:
-        for chunk in reader:
-            process_chunk(chunk, expected_columns)
-    except ValueError as e:
-        print(e)
-        return
+    fraza = entry_function.get()
 
-def analyze_column(df_go, df_all_compared, col):
-    print(f"Analyzing column: {col}")
-    filtered_go = df_go[df_go['go_term'].str.contains(INTERESTED_FUNCTION, case=False)]
+    df1['go_term'] = df1['go_term'].astype(str)
+    wynik = df1[df1['go_term'].str.contains(fraza, na=False, case=False)]
+    ilosc_fraz = len(wynik)
 
-    count_filtered = filtered_go.shape[0]
-    print(f"Number of cells containing the phrase '{INTERESTED_FUNCTION}': {count_filtered}")
+    log_text.insert(tk.END, f"Found {ilosc_fraz} matching phrases for '{fraza}'.\n")
+    log_text.update()
 
-    filtered_all_compared = df_all_compared[df_all_compared['gene_id'].isin(filtered_go['gene_id'])]
+    pasujace_gene_id = wynik['gene_id']
+    filtrowane_df2 = df2[df2['gene_id'].isin(pasujace_gene_id)]
+    log_text.insert(tk.END, "Found compare gene_id in Compare.xlsx.\n")
+    log_text.update()
 
-    condition = filtered_all_compared[col] < 0.05
-    filtered_df = filtered_all_compared[condition]
+    output_file = entry_dir.get() + '/result.xlsx'
+    with pd.ExcelWriter(output_file, engine='openpyxl') as writer:
+        for col in columns_input:
+            col_1 = col_2 = col_pvalue = col_padj = None
 
-    count_condition = filtered_df.shape[0]
-    print(f"Number of results meeting the condition: {count_condition}")
+            if col in df2.columns:
+                col_index = df2.columns.get_loc(col)
 
-    return filtered_df
+                if col_index > 1:
+                    col_1 = df2.columns[col_index - 2]
+                if col_index > 0:
+                    col_2 = df2.columns[col_index - 1]
+                if col_index + 1 < len(df2.columns):
+                    col_pvalue = df2.columns[col_index + 1]
+                if col_index + 2 < len(df2.columns):
+                    col_padj = df2.columns[col_index + 2]
 
-def color_columns(workbook, sheet_name, compare_col_index):
-    ws = workbook[sheet_name]
-    red_fill = PatternFill(start_color='FFFF0000', end_color='FFFF0000', fill_type='solid')
-    blue_fill = PatternFill(start_color='FF0000FF', end_color='FF0000FF', fill_type='solid')
+            df2_filtrowane = pd.merge(filtrowane_df2, wynik[['gene_id', 'go_term']], on='gene_id', how='left')
 
-    target_col_index = compare_col_index - 2
-    for row in range(2, ws.max_row + 1):
-        target_cell = ws.cell(row=row, column=target_col_index)
-        compare_cell = ws.cell(row=row, column=compare_col_index)
+            if col_padj and col_padj in df2_filtrowane.columns:
+                df2_filtrowane = df2_filtrowane[df2_filtrowane[col_padj] < 0.05]
+                log_text.insert(tk.END, "Used filtration with padj < 0.05.\n")
+                log_text.update()
 
-        # Make sure to check if the compare_cell has a value
-        if compare_cell.value is not None:
-            if compare_cell.value > 0:
-                target_cell.fill = red_fill
-            elif compare_cell.value < 0:
-                target_cell.fill = blue_fill
+            columns_to_include = [
+                'gene_id', col_1, col_2, col, col_pvalue, col_padj,
+                'gene_name', 'gene_chr', 'gene_start', 'gene_end',
+                'gene_strand', 'gene_length', 'gene_biotype',
+                'gene_description', 'Family', 'go_term'
+            ]
+            columns_to_include = [c for c in columns_to_include if c is not None]
 
-def main():
-    print(f"Loading database {BASE_GO}...")
-    cols_to_read = ['gene_id', 'go_term']
-    df_go = pd.read_excel(BASE_GO, usecols=cols_to_read)
+            df2_filtrowane = df2_filtrowane[columns_to_include]
+            log_text.insert(tk.END, f"Added column {col} to result.\n")
+            log_text.update()
 
-    print(f"Loading data from {BASE_ALL_COMPARED}...")
-    df_all_compared = pd.read_excel(BASE_ALL_COMPARED, engine='openpyxl')
-    print("Data loading completed.")
+            df2_filtrowane.to_excel(writer, index=False, sheet_name=col[:-len('_log2FoldChange')])
+            workbook = writer.book
+            worksheet = writer.sheets[col[:-len('_log2FoldChange')]]
 
-    unique_wyniki = generate_unique_filename("Wyniki.xlsx")
-    with pd.ExcelWriter(unique_wyniki, engine='openpyxl') as writer:
-        for col in COMPARE:
-            filtered_df = analyze_column(df_go, df_all_compared, col)
-            filtered_df.to_excel(writer, sheet_name=col, index=False)
-    print("All data has been saved to separate sheets.")
+            for row in range(2, len(df2_filtrowane) + 2):
+                cell_value = df2_filtrowane.iloc[row - 2][col]
+                cell = worksheet.cell(row=row, column=columns_to_include.index(col) + 1)
 
-    # Load the workbook to apply coloring
-    wb = load_workbook(unique_wyniki)
-    for col in COMPARE:
-        ws = wb[col]
-        compare_col_index = ws[1].index([cell for cell in ws[1] if cell.value == col][0]) + 1
-        color_columns(wb, col, compare_col_index)
+                if cell_value > 0:
+                    cell.fill = PatternFill(start_color='ADD8E6', end_color='ADD8E6', fill_type='solid')
+                elif cell_value < 0:
+                    cell.fill = PatternFill(start_color='FF6347', end_color='FF6347', fill_type='solid')
 
-    unique_filename = generate_unique_filename(f'{INTERESTED_FUNCTION}.xlsx')
-    print(f"Saving colored '{unique_filename}'...")
-    wb.save(unique_filename)
-    print("Saving completed. Cheers!")
+            for col_num in range(1, len(columns_to_include) + 1):
+                for row in range(1, len(df2_filtrowane) + 2):
+                    worksheet.cell(row=row, column=col_num).alignment = Alignment(wrap_text=True)
 
-if __name__ == "__main__":
-    main()
+            column_widths = {
+                'gene_id': 20,
+                col_1: 23,
+                col_2: 25,
+                col: 33,
+                col_pvalue: 25,
+                col_padj: 25,
+                'gene_name': 15,
+                'gene_chr': 10,
+                'gene_start': 15,
+                'gene_end': 10,
+                'gene_strand': 15,
+                'gene_length': 15,
+                'gene_biotype': 20,
+                'gene_description': 30,
+                'Family': 10,
+                'go_term': 30
+            }
+
+            for col_name, width in column_widths.items():
+                if col_name in df2_filtrowane.columns:
+                    col_index = df2_filtrowane.columns.get_loc(col_name) + 1
+                    worksheet.column_dimensions[get_column_letter(col_index)].width = width
+
+            header_fill = PatternFill(start_color='FFFFE0', end_color='FFFFE0', fill_type='solid')
+            for col_num in range(1, len(columns_to_include) + 1):
+                header_cell = worksheet.cell(row=1, column=col_num)
+                header_cell.fill = header_fill
+
+            thin_border = Border(bottom=Side(style='thin', color='C2B280'))
+
+            for col_num in range(1, len(columns_to_include) + 1):
+                worksheet.cell(row=1, column=col_num).border = thin_border
+
+            log_text.insert(tk.END, f"Process finished for column: {col}\n")
+            log_text.update()
+
+    log_text.insert(tk.END, "Fin.\n")
+    log_text.update()
+
+
+def start_process_threaded():
+    threading.Thread(target=start_process).start()
+
+
+root = tk.Tk()
+root.title("Transcryptomic filter")
+root.grid_columnconfigure(1, weight=1)
+root.grid_rowconfigure(6, weight=1)
+
+label_file1 = tk.Label(root, text="File go.xlsx:")
+label_file1.grid(row=0, column=0, padx=10, pady=10, sticky="w")
+entry_file1 = tk.Entry(root, width=50)
+entry_file1.grid(row=0, column=1, padx=10, pady=10)
+browse_file_button1 = tk.Button(root, text="...", command=lambda: browse_file(entry_file1))
+browse_file_button1.grid(row=0, column=2, padx=10, pady=10)
+
+label_file2 = tk.Label(root, text="File all_compare.xlsx:")
+label_file2.grid(row=1, column=0, padx=10, pady=10, sticky="w")
+entry_file2 = tk.Entry(root, width=50)
+entry_file2.grid(row=1, column=1, padx=10, pady=10)
+browse_file_button2 = tk.Button(root, text="...", command=lambda: browse_file(entry_file2))
+browse_file_button2.grid(row=1, column=2, padx=10, pady=10)
+
+label_function = tk.Label(root, text="Function: (ie. Chaperon)")
+label_function.grid(row=2, column=0, padx=10, pady=10, sticky="w")
+entry_function = tk.Entry(root, width=50)
+entry_function.grid(row=2, column=1, padx=10, pady=10)
+
+label_columns = tk.Label(root, text="Columns: (ie. HEK84_G50vsHEK)")
+label_columns.grid(row=3, column=0, padx=10, pady=10, sticky="w")
+entry_columns = tk.Entry(root, width=50)
+entry_columns.grid(row=3, column=1, padx=10, pady=10)
+
+label_dir = tk.Label(root, text="Saving dir:")
+label_dir.grid(row=4, column=0, padx=10, pady=10, sticky="w")
+entry_dir = tk.Entry(root, width=50)
+entry_dir.grid(row=4, column=1, padx=10, pady=10)
+browse_dir_button = tk.Button(root, text="...", command=lambda: browse_directory(entry_dir))
+browse_dir_button.grid(row=4, column=2, padx=10, pady=10)
+
+start_button = tk.Button(root, text="Start", command=start_process_threaded)
+start_button.grid(row=5, column=0, columnspan=3, pady=20)
+
+log_text = tk.Text(root, height=5, width=70)
+log_text.grid(row=6, column=0, columnspan=3, padx=10, pady=10, sticky="nsew")
+
+root.mainloop()
