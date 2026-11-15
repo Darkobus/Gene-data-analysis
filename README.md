@@ -1,97 +1,58 @@
-# Gene Data Analysis Tool
+# Gene data analysis — GO-term filter for transcriptomics
 
-This Python script automates the analysis of gene databases stored in
-Excel format. It is designed to identify and highlight genes related to
-specific biological functions and their expression changes in
-transcriptomics data sets. This tool is particularly useful for
-researchers working with gene expression data, enabling them to quickly
-filter and visually distinguish significant changes. As a student, I
-created it to be helpful for myself and my project colleagues.
+Finds genes with a given biological function among the significant hits of an RNA-seq
+differential-expression experiment, and writes a colour-coded Excel report per comparison.
 
-This program was specifically developed for the OPUS HTT project at the
-University of Gdańsk - Faculty of Biology - Department of Molecular
-Biology.
+Built during my molecular biology studies for the OPUS HTT project
+(University of Gdańsk, Faculty of Biology, Department of Molecular Biology), where
+it replaced manual filtering of DESeq2 tables in Excel.
 
-## Features
+```
+go.xlsx (gene_id, go_term) ──► genes whose GO term contains "chaperone"
+                                          │
+all_compare.xlsx (DESeq2 export) ─────────┴─► padj < 0.05 per comparison ──► result.xlsx
+                                                                              one sheet per comparison,
+                                                                              log2FC: blue = up, red = down
+```
 
-- **Search Functionality**: Targets specific phrases within gene
-database columns, allowing for focused analysis of genes associated with
-desired functions (e.g., autophagy, mitochondria).
-- **Transcriptomics Data Correlation**: Correlates gene data with transcriptomics results
-to isolate entries with significant expression changes, based on a p-value threshold (<0.05).
-- **Visual Highlights**: Enhances data readability by coloring cells in the 'change' column to indicate
-positive (red) or negative (blue) changes.
+## Quick start
 
-## How It Works
+```bash
+pip install -r requirements.txt
+python examples/make_example_data.py          # synthetic input files
+python gene_filter.py examples/go.xlsx examples/all_compare.xlsx \
+    --phrase chaperone --comparisons HEK84_G50vsHEK HEK41vsHEK --out result.xlsx
+```
 
-1. **Data Loading**: The script reads gene database information and
-transcriptomics results from specified Excel files.
-2. **Phrase Searching**: It filters the gene database to find entries containing a
-specified phrase related to a biological function.
-3. **Data Correlation**: Filters and correlates these entries with
-transcriptomics results, focusing on genes with significant expression
-changes.
-4. **Visual Highlighting**: Applies color coding to the
-'change' column in the output Excel file, visually distinguishing
-positive and negative changes.
+```
+8 GO annotations match 'chaperone'
+HEK84_G50vsHEK: 2 significant genes
+HEK41vsHEK: 4 significant genes
+Saved result.xlsx
+```
 
-## Prerequisites
+Or with a window: `python main.py` (Tkinter form with the same inputs).
 
-- Python 3.x
-- Pandas: For data manipulation and analysis.
-- Openpyxl: For reading, writing, and modifying Excel files in XLSX/XLSM/XLTX/XLTM formats.
+## Input format
 
-## Installation
+- **GO table** — `gene_id`, `go_term`.
+- **Comparison table** — DESeq2-style export: for each comparison `<name>` the columns
+  `…, <read count A>, <read count B>, <name>_log2FoldChange, <name>_pvalue, <name>_padj`
+  in this order, plus optional annotation columns (`gene_name`, `gene_chr`, `gene_start`,
+  `gene_end`, `gene_strand`, `gene_length`, `gene_biotype`, `gene_description`, `Family`).
 
-1. Clone the repository: ```git clone
-https://github.com/yourusername/genedata-analysis-tool.git cd
-genedata-analysis-tool ```
+## Files
 
-2. Install the required Python packages: ```pip install pandas
-openpyxl ```
+| File | |
+|---|---|
+| `gene_filter.py` | filtering and Excel report (CLI) |
+| `main.py` | Tkinter front-end |
+| `examples/make_example_data.py` | generates synthetic `go.xlsx` / `all_compare.xlsx` |
+| `tests/` | pytest: GO matching, padj filter, cell colouring |
 
-## Usage
+## Tests
 
-1. Place your gene database file (e.g., `go.xlsx`) and
-transcriptomics results file (e.g., `all_compare.xlsx`) in the
-your directory.
-2. Open the `main.py` script and configure the following variables as needed:
-- `BASE_GO`: Path to the gene database file.
-- `BASE_ALL_COMPARED`: Path to the transcriptomics results file.
-- `INTERESTED_FUNCTION`: The phrase you are interested in (e.g., 'chaperon').
-- `COMPARE`: A list of columns to compare in the transcriptomics results.
-
-3. Run the script: ```python main.py ```
-
-4. The output will be saved as `Wyniki.xlsx` with separate sheets for
-each comparison, and a final file named based on the
-`INTERESTED_FUNCTION` with color-coded changes.
-
-## Example
-
-Here's an example configuration and output process:
-
-1. **Configuration in** `main.py`:
-    ```python
-    BASE_GO = 'directory/go.xlsx'
-    BASE_ALL_COMPARED = 'directory/all_compare.xlsx'
-    INTERESTED_FUNCTION = 'chaperon'
-    COMPARE = [
-        'HEK41vsHEK_padj',
-        'HEK41_G50vsHEK41_padj',
-        'HEK41_G50vsHEK_padj',
-        'HEK84vsHEK_padj',
-        'HEK84_G50vsHEK84_padj',
-        'HEK84_G50vsHEK_padj'
-    ]
-    ```
-3. **Running the script**: ```bash python main.py ```
-
-4. **Output**:  - `Wyniki.xlsx`: Contains sheets for each column
-specified in `COMPARE`.  - `chaperon.xlsx`: Contains color-coded
-cells indicating positive (red) and negative (blue) changes.
-
-## Feedback
-
-This is my first repository, so it may be missing some elements. If you
-are willing, please provide feedback!
+```bash
+pip install -r requirements-dev.txt
+pytest -q
+```
